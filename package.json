@@ -1,0 +1,37 @@
+{
+	"name": "vue-prop-decorator-a-variation",
+	"version": "0.1.0",
+	"description": "Advanced property decorators for vue-class-component",
+	"main": "dist/vue-prop-decorator-a-variation.cjs.js",
+	"module": "dist/vue-prop-decorator-a-variation.esm-bundler.js",
+	"unpkg": "dist/vue-prop-decorator-a-variation.global.js",
+	"jsdelivr": "dist/vue-prop-decorator-a-variation.global.js",
+	"types": "dist/vue-prop-decorator-a-variation.d.ts",
+	"author": "Dimava",
+	"license": "MIT",
+	"files": [
+		"dist"
+	],
+	"peerDependencies": {
+		"vue": "^3.2.26",
+		"vue-class-component": "^8.0.0-rc.1"
+	},
+	"devDependencies": {
+		"@babel/core": "^7.16.5",
+		"@babel/preset-env": "^7.16.5",
+		"@microsoft/api-extractor": "^7.19.3",
+		"rollup": "^2.62.0",
+		"rollup-plugin-babel": "^4.4.0",
+		"rollup-plugin-replace": "^2.2.0",
+		"typescript": "^4.5.4",
+		"uglify-es": "^3.3.9",
+		"vue": "^3.2.26",
+		"vue-class-component": "^8.0.0-rc.1"
+	},
+	"scripts": {
+		"build": "yarn build:ts && yarn build:main && yarn build:dts",
+		"build:ts": "tsc -p .",
+		"build:main": "node scripts/build.js",
+		"build:dts": "api-extractor run"
+	}
+}
