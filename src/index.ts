@@ -1,5 +1,5 @@
-import { warn } from 'vue';
-import { PropOptions, WithDefault } from 'vue-class-component';
+import { PropType, warn } from 'vue';
+import { DefaultFactory, PropOptions, WithDefault as WithDefaultBase } from 'vue-class-component';
 
 
 
@@ -18,11 +18,11 @@ export type SimpleType = number | string | boolean | null;// | undefined;
 
 
 export type ValidPropDescription =
-	| number | string | boolean | undefined // simple types
+	| number | string | boolean // simple nullable types
 	| null // any
 	| Constructor // nullable
-	| (number | string | boolean | null | Constructor | undefined)[]
-	| [...(number | string | boolean | null | Constructor | undefined)[], object]
+	| readonly (number | string | boolean | null | Constructor | undefined)[]
+	| readonly [...(number | string | boolean | null | Constructor | undefined)[], object]
 	| PropOptions;
 
 
@@ -36,12 +36,16 @@ export type ExtractTypeSingle<T>
 	: T;
 
 export type ExtractType<T>
-	= T extends Array<infer V> ? ExtractTypeSingle<V>
+	= T extends readonly (infer V)[] ? ExtractTypeSingle<V>
 	// : T extends (Constructor & ((...args: any[]) => infer V)) ? V
 	: T extends NumberConstructor ? number
 	: T extends StringConstructor ? string
 	: T extends BooleanConstructor ? boolean
 	: T extends abstract new (...args: any) => infer V ? V
+	// simple types:
+	: T extends number ? number
+	: T extends string ? string
+	: T extends boolean ? boolean
 	: T;
 
 // type ExtractTypesIn<T>
@@ -50,12 +54,12 @@ export type ExtractType<T>
 
 
 export type ExtractDefault<T>
-	= T extends [...any[], infer P, infer D] ? (
+	= T extends readonly [...any[], infer P, infer D] ? (
 		D extends null ? D  // last null
 		: P extends Exclude<SimpleType, undefined> ? never // enums
 		: D extends SimpleType ? D : never // [constructor, default]
 	)
-	: T extends [infer D] ? (D extends SimpleType ? D : never) // [default] - FIXME: what's that, a const?
+	: T extends readonly [infer D] ? (D extends SimpleType ? D : never) // [default] - FIXME: what's that, a const?
 	: T extends abstract new (...args: any) => any ? never // FIXME: single constructor - what should it do?
 	: T; // FIXME: function - what should it do?
 
@@ -64,14 +68,19 @@ export type ExtractDefault<T>
 
 
 
-interface PropOptionsWith<T, D, R extends boolean> extends PropOptions<T, D> {
+interface PropOptionsWith<T, D, R extends boolean> {
+	type?: PropType<T> | true | null;
 	required: R,
-	default: D extends T ? PropOptions<T, D>['default'] : never,
+	default: D extends T ? D | DefaultFactory<D> | null | undefined | object : never,
+	validator?(value: unknown): value is T;
 }
 
 
-
-
+export type WithDefault<T, D> = {
+	[K in keyof (WithDefaultBase<T>)]: T & {
+		[K in keyof (WithDefaultBase<T>)]: D;
+	};
+}
 
 
 
@@ -80,8 +89,9 @@ type ConstructOptions<T> = {
 	[K in keyof T]: ConstructSingleOption<T[K]>
 }
 type ConstructSingleOption<T>
+	= T extends PropOptionsWith<any, any, boolean> ? T
 	// [String]
-	= never extends ExtractDefault<T> ? PropOptionsWith<ExtractType<T>, never, false>
+	: never extends ExtractDefault<T> ? PropOptionsWith<ExtractType<T>, never, false>
 	// [String, null]
 	: null extends ExtractDefault<T> ? PropOptionsWith<ExtractType<T>, ExtractDefault<T>, true>
 	: undefined extends ExtractDefault<T> ? PropOptionsWith<ExtractType<T>, ExtractDefault<T>, true>
@@ -91,12 +101,14 @@ type ConstructSingleOption<T>
 
 export type ConstructPropClass<T>
 	= {
-		[K in keyof T as ExtractDefault<T[K]> extends never ? K : never]
-		: WithDefault<ExtractType<T[K]>>
+		[K in keyof T as ExtractDefault<T[K]> extends never ? never : K]
+		: WithDefault<ExtractType<T[K]>, ExtractDefault<T[K]>>
 	} & {
-		[K in keyof T as ExtractDefault<T[K]> extends never ? never : K]?
+		[K in keyof T as ExtractDefault<T[K]> extends never ? K : never]
 		: ExtractType<T[K]>
 	};
+
+
 
 function makeValidator<T extends ValidPropDescription>(meta: T, key: string): (value: unknown) => value is ExtractType<T> {
 	/* Vue uses this hack, should is be used here?
@@ -128,36 +140,59 @@ function makeValidator<T extends ValidPropDescription>(meta: T, key: string): (v
 	}
 }
 
-export function makeClass<T extends Record<string, ValidPropDescription>>(propsMeta: T): { new(): ConstructPropClass<T> } {
+function convertDescriptionToProp<T extends ValidPropDescription>(source: T, key: string): ConstructSingleOption<T> {
+	let meta: ValidPropDescription & any[] = [];
+	switch (typeof source) {
+		case 'number': meta = [Number, source]; break;
+		case 'string': meta = [String, source]; break;
+		case 'boolean': meta = [Boolean, source]; break;
+		case 'object':
+			if (source == null) {
+				meta = [source];
+			} else if (!Array.isArray(source)) {
+				return source as ConstructSingleOption<T>;
+			} else { meta = source; }
+			break;
+		case 'function':
+			meta = [source];
+		default: throw new Error('FIXME');
+	}
+	if (meta.length == 0) {	// [] - any!
+		return { required: true } as PropOptionsWith<any, never, true> as any;
+	}
+	if (meta.length == 1) {
+		if (meta[0] == null) {
+			return { required: false } as PropOptionsWith<any, never, false> as any;
+		}
+		return {
+			required: true,
+			validator: makeValidator(meta, key),
+		} as PropOptionsWith<any, never, true> as any;
+	}
+	let last = meta[meta.length - 1];
+	let prev = meta[meta.length - 2];
+	let hasDefault
+		= typeof last == 'function' ? false // constructor is not a default
+			: typeof prev == 'undefined' ? true // after empty
+				: typeof prev == 'function' ? true // after constructor
+					: false;
+	if (hasDefault) {
+		return {
+			default: last,
+			required: false,
+			validator: makeValidator(meta, key),
+		} as PropOptionsWith<any, any, false> as any;
+	}
+	return {
+		required: true,
+		validator: makeValidator(meta, key),
+	} as PropOptionsWith<any, never, true> as any;
+}
+
+export function makeClass<T extends { readonly [k: string]: ValidPropDescription }>(propsMeta: T): { new(): ConstructPropClass<T> } {
 	let props: Partial<ConstructOptions<T>> = {};
 	(Object.keys(propsMeta) as (keyof T & keyof typeof props & string)[]).forEach((key) => {
-		const meta: ValidPropDescription = propsMeta[key];
-		if (typeof meta != 'object') throw new Error('FIXME');
-		if (!Array.isArray(meta)) { props[key] = meta as ConstructSingleOption<T[typeof key]>; return; }
-
-		let prop: Partial<PropOptionsWith<any, any, boolean>> = {};
-		if (meta.length == 0) throw new Error('FIXME');
-		if (meta.length == 1) {
-			if (meta[0] == null) throw new Error('FIXME');
-			// prop.type = meta as PropType<any>; // own validator is better
-			prop.validator = makeValidator(meta, key);
-			prop.required = true;
-			// no default
-		}
-		if (meta.length > 1) {
-			let last = meta[meta.length - 1];
-			let prev = meta[meta.length - 2];
-			// prop.type = meta as PropType<any>; // own validator is better
-			prop.validator = makeValidator(meta, key);
-			prop.required = true;
-			if (typeof last != 'function') {
-				if (last == null || typeof prev == 'undefined' || typeof prev == 'function') {
-					prop.default = last;
-					prop.required = false;
-				}
-			}
-		}
-		props[key] = prop as ConstructSingleOption<T[typeof key]>;
+		props[key] = convertDescriptionToProp(propsMeta[key], key)
 	})
 	return class {
 		constructor() {
@@ -206,3 +241,9 @@ export function makeClass<T extends Record<string, ValidPropDescription>>(propsM
 // 		return this.enuA;
 // 	}
 // }
+
+
+
+export { Template } from './template';
+
+export { Component, knownComponents, registerKnownComponents } from './globalComponent';
