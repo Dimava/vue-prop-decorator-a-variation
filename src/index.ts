@@ -155,6 +155,7 @@ function convertDescriptionToProp<T extends ValidPropDescription>(source: T, key
 			break;
 		case 'function':
 			meta = [source];
+			break;
 		default: throw new Error('FIXME');
 	}
 	if (meta.length == 0) {	// [] - any!
