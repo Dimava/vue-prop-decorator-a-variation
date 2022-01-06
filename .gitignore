@@ -3,3 +3,6 @@ example/build.js
 example/build.js.map
 lib/
 dist/
+.yarn/cache/
+.yarn/unplugged/
+!.yarn/releases

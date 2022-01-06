@@ -36,7 +36,8 @@ export type ExtractTypeSingle<T>
 	: T;
 
 export type ExtractType<T>
-	= T extends readonly (infer V)[] ? ExtractTypeSingle<V>
+	= T extends readonly [] ? any
+	: T extends readonly (infer V)[] ? ExtractTypeSingle<V>
 	// : T extends (Constructor & ((...args: any[]) => infer V)) ? V
 	: T extends NumberConstructor ? number
 	: T extends StringConstructor ? string
@@ -54,7 +55,8 @@ export type ExtractType<T>
 
 
 export type ExtractDefault<T>
-	= T extends readonly [...any[], infer P, infer D] ? (
+	= T extends readonly [] ? never
+	: T extends readonly [...any[], infer P, infer D] ? (
 		D extends null ? D  // last null
 		: P extends Exclude<SimpleType, undefined> ? never // enums
 		: D extends SimpleType ? D : never // [constructor, default]
