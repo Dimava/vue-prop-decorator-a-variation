@@ -33,3 +33,19 @@ export function Component<V extends VueConstructor, VC extends VueConstructor<Vu
 		return convert;
 	}
 };
+
+export const known = {
+	install(app: App) {
+		registerKnownComponents(app);
+		return app;
+	}
+}
+
+export const custom = {
+	install(app: App) {
+		app.config.compilerOptions.isCustomElement = (tag) => {
+			return tag.toUpperCase() == tag;
+		}
+		return app;
+	}
+}
