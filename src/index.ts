@@ -12,6 +12,7 @@ export {
 	Constructor,
 	ExtractPropTypeSingle,
 	SimpleType,
+	Supertype,
 } from './propClassFactory';
 
 export { Template } from './template';

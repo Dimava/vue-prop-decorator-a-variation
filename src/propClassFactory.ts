@@ -5,8 +5,8 @@ export type Constructor = abstract new (...args: any) => any
 export type SimpleType = number | string | boolean | null // | undefined;
 
 export type ValidPropDefinition =
-	// | number | string | boolean | null
-	// | Constructor
+	| number | string | boolean | null
+	| Constructor
 	| readonly (number | string | boolean | null | Constructor | undefined)[]
 	| PropOptions
 
@@ -18,6 +18,13 @@ export type ExtractPropTypeSingle<T> =
 	: T extends undefined ? never
 	: T // null, 123, 'wasd', {}, ()=>{}
 
+export type Supertype<T> =
+	| T extends number ? number
+	: T extends string ? string
+	: T extends boolean ? boolean
+	: T extends null ? any
+	: never
+
 export type ExtractPropType<T> =
 	| T extends readonly [] ? any
 	: T extends readonly (infer V)[] ? ExtractPropTypeSingle<V>
@@ -25,7 +32,7 @@ export type ExtractPropType<T> =
 	: T extends StringConstructor ? string
 	: T extends BooleanConstructor ? boolean
 	: T extends abstract new (...args: any) => infer V ? V
-	: unknown // null, 123, 'wasd', {}, ()=>{}
+	: Supertype<T> // null, 123, 'wasd', {}, ()=>{}
 
 export type ExtractPropTypesIn<T> = { [K in keyof T]: ExtractPropType<T[K]> }
 
@@ -42,6 +49,7 @@ export type ExtractPropDefault<T> =
 	)
 	: T extends readonly [] ? never
 	: T extends abstract new (...args: any) => any ? never // FIXME: single constructor - what should it do?
+	: T extends Exclude<SimpleType, null | undefined> ? T
 	: never // FIXME: function - what should it do?
 
 export type ExtractPropDefaultsIn<T> = {
@@ -139,21 +147,37 @@ export function makePropClass<T extends PropsDefinition>(
 	let props: Partial<ConstructPropOptions<T>> = {};
 	(Object.keys(propsMeta) as (keyof T & keyof typeof props & string)[])
 		.forEach((key) => {
-			const meta: ValidPropDefinition = propsMeta[key]
-			if (typeof meta != 'object') throw new Error('FIXME')
-			if (!Array.isArray(meta)) {
-				props[key] = meta as ConstructSingleOption<T[typeof key]>;
+			const source: ValidPropDefinition = propsMeta[key];
+			let meta!: any[];
+			if (typeof source == 'function') {
+				meta = [source];
+			} else if (typeof source == 'object') {
+				if (!source) {
+					meta = [null];
+				} else if (!Array.isArray(source)) {
+					props[key] = source as ConstructSingleOption<T[typeof key]>;
+				} else {
+					meta = source;
+				}
+			} else if ((source as any).constructor) {
+				meta = [(source as any).constructor];
+			} else if (source == undefined) {
 				return;
 			}
 
 			let prop: Partial<PropOptionsWith<any, any, boolean>> = {}
-			if (meta.length == 0) throw new Error('FIXME');
-			if (meta.length == 1) {
-				if (meta[0] == null) throw new Error('FIXME');
-				// prop.type = meta as PropType<any>; // own validator is better
-				prop.validator = makeValidator(meta, key);
+			if (meta.length == 0) {
 				prop.required = true;
-				// no default
+			}
+			if (meta.length == 1) {
+				if (meta[0] == null) {
+					prop.required = false;
+				} else {
+					// prop.type = meta as PropType<any>; // own validator is better
+					prop.validator = makeValidator(meta, key);
+					prop.required = true;
+					// no default
+				}
 			}
 			if (meta.length > 1) {
 				let last = meta[meta.length - 1];
