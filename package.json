@@ -1,6 +1,6 @@
 {
 	"name": "vue-prop-decorator-a-variation",
-	"version": "0.1.0",
+	"version": "0.3.0",
 	"description": "Advanced property decorators for vue-class-component",
 	"main": "dist/vue-prop-decorator-a-variation.cjs.js",
 	"module": "dist/vue-prop-decorator-a-variation.esm-bundler.js",
