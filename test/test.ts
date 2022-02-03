@@ -1,6 +1,40 @@
-// import { Vue } from "vue-class-component";
-// import { makeClass } from "../src/index";
+import { DefinitionObjectToProps, PropOptionsWith } from "../src";
 
+let a = {
+	optAny: null,
+
+	reqNum: Number,
+	optNum: [Number],
+	defNum: 123,
+
+	reqNumStr: [Number, String, []],
+	optNumStr: [Number, String],
+	defNumStr: [Number, String, 123],
+
+	reqLiteral: [[1, 2, 3], []],
+	optLiteral: [[1, 2, 3]],
+	defLiteral: [[1, 2, 3], 1]
+} as const;
+
+type A = DefinitionObjectToProps<typeof a>;
+type B = {
+	optAny: PropOptionsWith<any, never, false>;
+
+	reqNum: PropOptionsWith<number, never, true>;
+	optNum: PropOptionsWith<number, never, false>;
+	defNum: PropOptionsWith<number, 123, false>;
+
+	reqNumStr: PropOptionsWith<number | string, never, true>;
+	optNumStr: PropOptionsWith<number | string, never, false>;
+	defNumStr: PropOptionsWith<number | string, 123, false>;
+
+	reqLiteral: PropOptionsWith<1 | 2 | 3, never, true>;
+	optLiteral: PropOptionsWith<1 | 2 | 3, never, false>;
+	defLiteral: PropOptionsWith<1 | 2 | 3, 1, false>;
+}
+type EnsureSame<T, V extends T, TT extends V> = T & V & TT;
+
+declare let _: EnsureSame<A, B, A>;
 
 // // let cls = makeClass({
 // // 	a: [],
