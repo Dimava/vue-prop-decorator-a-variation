@@ -1,6 +1,6 @@
 import { warn } from 'vue'
 import { PropOptions } from 'vue-class-component';
-import { DefinitionObjectToProps, PropOptionsInfo, ValidPropDefinition } from './propTypes';
+import { DefinitionToInstance, PropOptionsInfo, ValidPropDefinition } from './propTypes';
 
 /**
  * Makes valudator out of definition array  
@@ -54,7 +54,7 @@ function makeValidator<T extends Exclude<ValidPropDefinition, PropOptions>, PT =
 
 export function makePropClass<T extends Record<string, ValidPropDefinition>>(
 	propDefinitionObject: T
-): { new(): DefinitionObjectToProps<T> } {
+): { new(): { [k in keyof T]: DefinitionToInstance<T[k]> } } {
 	let props: Record<string, PropOptions> = {};
 	for (let key in propDefinitionObject) {
 		const source: ValidPropDefinition = propDefinitionObject[key];

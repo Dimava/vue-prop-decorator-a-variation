@@ -1,4 +1,4 @@
-import { PropOptions } from "vue-class-component"
+import { PropOptions, WithDefault } from "vue-class-component"
 
 
 export interface PropOptionsWith<Type, Default, Required extends boolean> extends PropOptions<Type, Default> {
@@ -63,6 +63,17 @@ export type DefinitionArrayToProp<V> =
 		Extract<V, readonly never[]> extends never ? false : true
 	>;
 
+export type PropOptionsInfo<T extends ValidPropDefinition | PropOptionsWith<any, any, any>> =
+	| DefinitionToProp<T> extends PropOptionsWith<infer PT, infer PD, infer PR> ? {
+		type: PT, default: PD, required: PR,
+	} : never;
+
+export type DefinitionToInstance<T extends ValidPropDefinition> =
+	| PropOptionsInfo<T>['default'] extends never ? (
+		true extends PropOptionsInfo<T>['required'] ? PropOptionsInfo<T>['type']
+		: PropOptionsInfo<T>['type'] | undefined
+	) : WithDefault<PropOptionsInfo<T>['type']>;
+
 export type DefinitionObjectToProps<T extends Record<string, ValidPropDefinition>> =
 	{
 		[k in keyof T]: DefinitionToProp<T[k]>;
@@ -70,11 +81,7 @@ export type DefinitionObjectToProps<T extends Record<string, ValidPropDefinition
 
 export type DefinitionObjectToPropClass<T extends Record<string, ValidPropDefinition>> =
 	{
-		new(): DefinitionObjectToProps<T>;
+		new(): {
+			[k in keyof T]: DefinitionToInstance<T[k]>
+		}
 	};
-
-export type PropOptionsInfo<T extends ValidPropDefinition | PropOptionsWith<any, any, any>> =
-	| T extends PropOptionsWith<infer PT, infer PD, infer PR> ? {
-		type: PT, default: PD, required: PR,
-	}
-	: PropOptionsInfo<DefinitionToProp<T>>;

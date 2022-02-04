@@ -1,4 +1,5 @@
-import { DefinitionObjectToProps, PropOptionsWith } from "../src";
+import { Vue } from "vue-class-component";
+import { DefinitionObjectToProps, makeClass, PropOptionsWith } from "../src";
 
 let a = {
 	optAny: null,
@@ -35,6 +36,24 @@ type B = {
 type EnsureSame<T, V extends T, TT extends V> = T & V & TT;
 
 declare let _: EnsureSame<A, B, A>;
+
+class TestVue extends Vue.with(makeClass({
+	optAny: null,
+
+	reqNum: Number,
+	optNum: [Number],
+	defNum: 123,
+
+	reqNumStr: [Number, String, []],
+	optNumStr: [Number, String],
+	defNumStr: [Number, String, 123],
+
+	reqLiteral: [[1, 2, 3], []],
+	optLiteral: [[1, 2, 3]],
+	defLiteral: [[1, 2, 3], 1]
+} as const)) {
+	
+}
 
 // // let cls = makeClass({
 // // 	a: [],
