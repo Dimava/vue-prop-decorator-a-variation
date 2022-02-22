@@ -7,4 +7,26 @@ export {
 
 export { Template } from './template';
 
-export { Component, knownComponents, registerKnownComponents, known, custom } from './globalComponent';
+export { GlobalComponent as Component, globalComponents, known, custom } from './globalComponent';
+
+
+import { createApp as capp, CreateAppFunction } from 'vue';
+import { custom, known } from './globalComponent';
+
+
+
+import { Vue } from "vue-class-component";
+import { makePropClass } from './propClassFactory';
+import { ValidPropDefinition } from './propTypes';
+
+
+export const VueWithProps =
+	function <T extends Record<string, ValidPropDefinition>>(
+		propDefinitionObject: T
+	) {
+		return Vue.with(makePropClass(propDefinitionObject))
+	};
+
+export const createApp: CreateAppFunction<Element> = function createApp(...a) {
+	return capp(...a).use(known).use(custom);
+};
