@@ -107,7 +107,7 @@ function genConfig(opts) {
       file: opts.file,
       format: opts.format,
       banner,
-      name: 'VuePropDecoratorAVariation',
+      name: 'VueDAV',
       exports: 'named',
       globals: {
         vue: 'Vue',
